@@ -1,0 +1,19 @@
+{
+  "name": "codeatlas-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CodeAtlas dashboard: vanilla JavaScript ES modules + Tailwind CSS. No framework, no bundler.",
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/input.css -o ./public/assets/app.css --minify",
+    "watch:css": "tailwindcss -i ./src/input.css -o ./public/assets/app.css --watch",
+    "test": "node --test \"tests/**/*.test.js\""
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.3",
+    "tailwindcss": "4.3.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

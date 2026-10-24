@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Node / frontend build
+node_modules/
+frontend/public/assets/app.css
+
+# Local config and generated samples
+.env
+samples/
+test-results/
+e2e-screenshots/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

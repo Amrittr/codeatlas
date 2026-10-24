@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Empty = same origin. Set to the API origin when the frontend is deployed separately. -->
+    <meta name="codeatlas-api-base" content="" />
+    <meta name="description" content="CodeAtlas — understand any codebase. Visualize every connection." />
+    <title>CodeAtlas</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/app.css" />
+    <script type="module" src="js/app.js"></script>
+  </head>
+  <body class="min-h-screen">
+    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 btn btn-primary">Skip to content</a>
+
+    <div class="flex min-h-screen flex-col lg:flex-row">
+      <!-- Sidebar -->
+      <aside class="flex shrink-0 flex-col border-b border-line bg-surface lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:border-r lg:border-b-0">
+        <div class="flex items-center gap-3 px-5 py-4 lg:py-5">
+          <img src="assets/favicon.svg" alt="" class="size-8" width="32" height="32" />
+          <div class="min-w-0">
+            <p class="text-[15px] font-semibold tracking-tight text-ink">CodeAtlas</p>
+            <p class="truncate text-[11px] text-subtle">Understand any codebase.</p>
+          </div>
+        </div>
+
+        <nav aria-label="Primary" class="px-3 pb-3 lg:flex-1 lg:pb-0">
+          <ul class="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible" id="primary-nav">
+            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="upload"><span data-icon="upload"></span>Analyze</button></li>
+            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="overview" disabled><span data-icon="dashboard"></span>Overview</button></li>
+            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="explorer" disabled><span data-icon="list-tree"></span>File Explorer</button></li>
+            <li class="hidden pt-4 pb-1 pl-3 text-[11px] font-semibold tracking-wider text-subtle uppercase lg:block" aria-hidden="true">Planned</li>
+            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="planned-architecture"><span data-icon="network"></span>Architecture Map<span class="badge-planned ml-auto lg:hidden">Planned</span></button></li>
+            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="planned-dependencies"><span data-icon="git-fork"></span>Dependencies<span class="badge-planned ml-auto lg:hidden">Planned</span></button></li>
+            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="planned-assistant"><span data-icon="message"></span>Codebase Assistant<span class="badge-planned ml-auto lg:hidden">Planned</span></button></li>
+            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="planned-settings"><span data-icon="settings"></span>Project Settings<span class="badge-planned ml-auto lg:hidden">Planned</span></button></li>
+          </ul>
+        </nav>
+
+        <div class="hidden border-t border-line px-5 py-4 text-[11px] leading-relaxed text-subtle lg:block">
+          <p class="flex items-center gap-2">
+            <span id="server-status-dot" class="size-2 rounded-full bg-subtle" aria-hidden="true"></span>
+            <span id="server-status">Checking server…</span>
+          </p>
+          <p class="mt-2">Server mode: archives are analyzed on this CodeAtlas server and deleted right after scanning.</p>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <div class="flex min-w-0 flex-1 flex-col">
+        <header class="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b border-line bg-canvas/90 px-4 py-3 backdrop-blur sm:px-6">
+          <div class="min-w-40 flex-1">
+            <p class="truncate text-[11px] font-medium tracking-wider text-subtle uppercase" id="header-eyebrow">No project loaded</p>
+            <h1 class="truncate text-lg font-semibold tracking-tight" id="header-title">Analyze a project</h1>
+          </div>
+          <div class="flex items-center gap-2" id="header-actions" hidden>
+            <span class="chip hidden md:inline-flex" id="header-expiry"></span>
+            <button type="button" class="btn btn-ghost" id="new-analysis"><span data-icon="plus"></span><span class="hidden sm:inline">New analysis</span><span class="sm:hidden">New</span></button>
+            <button type="button" class="btn btn-ghost" id="discard-project" title="Delete this analysis from the server now"><span data-icon="trash"></span><span class="hidden sm:inline">Discard</span></button>
+          </div>
+        </header>
+
+        <div id="toast-region" class="pointer-events-none fixed right-4 bottom-4 z-50 flex max-w-sm flex-col gap-2" aria-live="polite"></div>
+
+        <main id="main" class="flex min-h-0 flex-1 flex-col px-4 py-5 sm:px-6" tabindex="-1">
+          <!-- Upload -->
+          <section data-view="upload" aria-labelledby="header-title" class="mx-auto w-full max-w-3xl">
+            <div class="mb-6">
+              <p class="text-2xl font-semibold tracking-tight sm:text-3xl">Understand any codebase.</p>
+              <p class="mt-2 text-muted">Upload a ZIP of a project to map its folders, file types and configuration. Nothing in the archive is executed.</p>
+            </div>
+
+            <div id="dropzone" class="dropzone">
+              <div class="mb-4 flex size-12 items-center justify-center rounded-xl border border-line bg-raised text-accent">
+                <span data-icon="upload" class="size-6"></span>
+              </div>
+              <p class="text-base font-medium">Drop a .zip archive here</p>
+              <p class="mt-1 text-sm text-subtle">or</p>
+              <label class="btn btn-primary mt-3 cursor-pointer">
+                <input id="file-input" type="file" accept=".zip,application/zip,application/x-zip-compressed" class="sr-only" />
+                Choose a file
+              </label>
+              <p class="mt-4 text-xs text-subtle" id="limits-hint">Loading server limits…</p>
+            </div>
+
+            <div id="upload-progress" class="card mt-4 p-4" hidden aria-live="polite">
+              <div class="flex items-center gap-3">
+                <span class="spinner" aria-hidden="true"></span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium" id="progress-label">Uploading…</p>
+                  <p class="text-xs text-subtle" id="progress-detail"></p>
+                </div>
+                <button type="button" class="btn btn-ghost" id="cancel-upload"><span data-icon="x"></span>Cancel</button>
+              </div>
+              <div class="meter mt-3" id="progress-meter"><span class="bg-accent" id="progress-bar"></span></div>
+            </div>
+
+            <div id="upload-error" class="mt-4 rounded-xl border border-danger/40 bg-danger/10 p-4" role="alert" hidden>
+              <div class="flex gap-3">
+                <span data-icon="alert" class="mt-0.5 size-5 text-danger"></span>
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-ink" id="upload-error-title">Analysis failed</p>
+                  <p class="mt-1 text-sm text-muted" id="upload-error-message"></p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 grid gap-4 sm:grid-cols-2">
+              <fieldset class="card flex flex-col gap-4 p-4" id="analysis-options">
+                <legend class="sr-only">Exclusion rules</legend>
+                <p class="card-title">What to leave out</p>
+                <label class="flex cursor-pointer items-start gap-3">
+                  <input type="checkbox" id="apply-exclusions" class="mt-0.5 size-4 accent-accent" checked />
+                  <span>
+                    <span class="block text-sm font-medium">Skip dependency, VCS and cache folders</span>
+                    <span class="mt-1 block text-xs text-subtle" id="exclusion-names">node_modules, .git, .venv, __pycache__ …</span>
+                  </span>
+                </label>
+                <label class="flex cursor-pointer items-start gap-3">
+                  <input type="checkbox" id="respect-gitignore" class="mt-0.5 size-4 accent-accent" checked />
+                  <span>
+                    <span class="block text-sm font-medium">Respect .gitignore files</span>
+                    <span class="mt-1 block text-xs text-subtle">Root and nested .gitignore files, with git's rules (negation, folder-only, anchored patterns).</span>
+                  </span>
+                </label>
+                <details class="group" id="custom-rules">
+                  <summary class="flex cursor-pointer list-none items-center gap-2 text-sm font-medium">
+                    <span data-icon="chevron-right" class="size-4 text-subtle transition-transform group-open:rotate-90"></span>
+                    Custom rules <span class="chip" id="custom-rules-count" hidden></span>
+                  </summary>
+                  <div class="mt-3 flex flex-col gap-3">
+                    <label class="flex flex-col gap-1">
+                      <span class="text-xs text-muted">Also exclude</span>
+                      <textarea id="exclude-patterns" rows="3" class="field resize-y font-mono text-xs" spellcheck="false" placeholder="docs/&#10;*.min.js&#10;tests/fixtures/"></textarea>
+                    </label>
+                    <label class="flex flex-col gap-1">
+                      <span class="text-xs text-muted">Always include (overrides the rules above)</span>
+                      <textarea id="include-patterns" rows="2" class="field resize-y font-mono text-xs" spellcheck="false" placeholder="dist/&#10;vendor/"></textarea>
+                    </label>
+                    <p class="text-xs text-subtle">One gitignore-style pattern per line, matched from the archive root. An included path must not sit inside an excluded folder: include the folder itself.</p>
+                  </div>
+                </details>
+                <p class="text-xs text-subtle">Excluded paths are not extracted, but still appear in the tree with the rule that excluded them.</p>
+              </fieldset>
+              <div class="card p-4">
+                <p class="flex items-center gap-2 text-sm font-medium"><span data-icon="shield" class="size-4 text-ok"></span>How your code is handled</p>
+                <p class="mt-1 text-xs leading-relaxed text-subtle" id="privacy-note">
+                  The archive is uploaded to this server, safely extracted to a private temporary folder, scanned for names, paths and sizes, then deleted. Nothing is executed. The only file contents read are .gitignore files, to decide what to skip. Results stay in server memory only.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Overview -->
+          <section data-view="overview" aria-label="Project overview" hidden></section>
+
+          <!-- Explorer -->
+          <section data-view="explorer" aria-label="File explorer" class="flex min-h-0 flex-1 flex-col" hidden></section>
+
+          <!-- Planned features -->
+          <section data-view="planned" aria-live="polite" class="mx-auto w-full max-w-2xl" hidden></section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

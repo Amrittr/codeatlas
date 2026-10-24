@@ -1,0 +1,16 @@
+[project]
+name = "codeatlas-backend"
+version = "0.1.0"
+description = "CodeAtlas analysis API: secure ZIP import, repository scanning and structure statistics."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not e2e'"
+filterwarnings = [
+    # Starlette 1.x prefers httpx2 for its TestClient; httpx still works and is what FastAPI documents.
+    "ignore:Using `httpx` with `starlette.testclient`",
+]
+markers = [
+    "e2e: browser-level end-to-end tests (need Playwright Chromium and the built frontend CSS)",
+]
