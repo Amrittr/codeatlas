@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.4.0 — 2026-10-25 — Generated architecture map
+
+### Added
+- **Architecture map** (`GET /api/projects/{id}/architecture`, `/architecture/components/{cid}`).
+  Components grouped from package boundaries and source folders. Roles (frontend, API,
+  backend, business logic, data, auth, jobs, shared, tests) with evidence and confidence.
+  Import connections, inferred HTTP links from frontends to the APIs they call, and external
+  services (databases, payments, email, AI, cloud, messaging).
+- Parsers: tree-sitter for JavaScript/TypeScript/TSX and `ast` for Python. They extract imports,
+  route declarations, client URL paths and browser-API use. Real parsers mean comments and
+  strings are never mistaken for imports.
+- Manifest reading: package.json, pyproject.toml, requirements*.txt, tsconfig/jsconfig paths,
+  entry points. Framework detection with confidence (declared and/or imported).
+- UI: an **Architecture Map** page with an interactive Cytoscape diagram (layered top to
+  bottom), a list view, and a details panel whose evidence links open files in the explorer.
+  New upload option "Map the architecture" and new progress phases (parsing, mapping).
+- Settings: `MAX_PARSE_SECONDS` (150 s), after which the map is partial instead of the analysis failing.
+- Tests: `test_architecture.py` (18 cases) and an architecture e2e test (202 / 14 / 19 passing).
+
+### Changed
+- `schemaVersion` is `"4"` (`project.codeAnalysis` added).
+- Source files of JS/TS/Python are now read and parsed in memory when the map is on (never
+  executed or stored). SECURITY.md and the in-app privacy note are updated.
+- Frontend files are served with `Cache-Control: no-cache`, so browsers never run a stale `app.js`.
+- Cytoscape's injected inline style is pre-empted, so the CSP stays free of `unsafe-inline`.
+
+### Fixed during development
+- tree-sitter raises `ValueError` on cancellation instead of returning `None`, which would have
+  turned cancelled jobs into internal errors.
+- The Python resolver missed `src/` layouts (it only knew folders that directly contain files).
+
 ## 0.3.0 — 2026-10-24 — Phase 2 complete
 
 ### Added

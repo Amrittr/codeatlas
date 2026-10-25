@@ -8,6 +8,7 @@ import { TreeModel } from "./components/treeModel.js";
 import { $, $$, h } from "./utils/dom.js";
 import { formatNumber, minutesUntil } from "./utils/format.js";
 import { hydrateIcons, icon } from "./utils/icons.js";
+import { createArchitectureView } from "./views/architecture.js";
 import { createExplorer } from "./views/explorer.js";
 import { renderOverview } from "./views/overview.js";
 import { renderPlanned } from "./views/planned.js";
@@ -36,6 +37,15 @@ const els = {
 const explorer = createExplorer({ onError: (error) => toast(error.message, "error"), onNotice: (message) => toast(message) });
 els.views.explorer.append(explorer.element);
 
+const architecture = createArchitectureView({
+  onReveal: (nodeId) => {
+    showView("explorer");
+    explorer.reveal(nodeId);
+  },
+  onError: (error) => toast(error.message, "error"),
+});
+els.views.architecture.append(architecture.element);
+
 const uploader = createUploadController({
   onCompleted: async (details) => {
     await openProject(details);
@@ -57,12 +67,13 @@ function showView(view) {
   if (section === "planned") {
     renderPlanned(els.views.planned, view);
   }
+  if (view === "architecture") architecture.show();
   renderHeader();
 }
 
 function renderHeader() {
   const project = state.details?.project;
-  const titles = { upload: "Analyze a project", overview: "Overview", explorer: "File Explorer" };
+  const titles = { upload: "Analyze a project", overview: "Overview", explorer: "File Explorer", architecture: "Architecture Map" };
   if (project) {
     els.headerEyebrow.textContent = project.name;
     els.headerActions.hidden = false;
@@ -86,7 +97,7 @@ for (const button of els.nav) {
 
 function setProjectNavEnabled(enabled) {
   for (const button of els.nav) {
-    if (button.dataset.nav === "overview" || button.dataset.nav === "explorer") button.disabled = !enabled;
+    if (["overview", "explorer", "architecture"].includes(button.dataset.nav)) button.disabled = !enabled;
   }
 }
 
@@ -137,6 +148,7 @@ async function openProject(details) {
     },
   });
   explorer.load(details, model);
+  architecture.load(details.project.id);
 }
 
 function closeProject() {
@@ -149,6 +161,7 @@ function closeProject() {
   }
   setProjectNavEnabled(false);
   els.views.overview.replaceChildren();
+  architecture.reset();
   showView("upload");
 }
 

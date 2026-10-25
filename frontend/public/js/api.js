@@ -61,6 +61,10 @@ export function searchProject(id, { q, extensions = [], classifications = [], ty
   });
 }
 
+export const getArchitecture = (id, options) => request(`/api/projects/${encodeURIComponent(id)}/architecture`, options);
+export const getComponent = (id, componentId, options) =>
+  request(`/api/projects/${encodeURIComponent(id)}/architecture/components/${encodeURIComponent(componentId)}`, options);
+
 export const getJob = (id, options) => request(`/api/jobs/${encodeURIComponent(id)}`, options);
 export const cancelJob = (id) => request(`/api/jobs/${encodeURIComponent(id)}`, { method: "DELETE" });
 
@@ -71,7 +75,15 @@ export const cancelJob = (id) => request(`/api/jobs/${encodeURIComponent(id)}`, 
  */
 export function uploadArchive(
   file,
-  { applyDefaultExclusions = true, respectGitignore = true, excludePatterns = "", includePatterns = "", onUploadProgress, onUploaded } = {},
+  {
+    applyDefaultExclusions = true,
+    respectGitignore = true,
+    excludePatterns = "",
+    includePatterns = "",
+    analyzeCode = true,
+    onUploadProgress,
+    onUploaded,
+  } = {},
 ) {
   const xhr = new XMLHttpRequest();
   const promise = new Promise((resolve, reject) => {
@@ -81,6 +93,7 @@ export function uploadArchive(
     form.append("respectGitignore", respectGitignore ? "true" : "false");
     form.append("excludePatterns", excludePatterns);
     form.append("includePatterns", includePatterns);
+    form.append("analyzeCode", analyzeCode ? "true" : "false");
 
     xhr.open("POST", `${API_BASE}/api/projects/analyze`);
     xhr.responseType = "json";

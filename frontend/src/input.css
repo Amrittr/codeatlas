@@ -127,11 +127,21 @@
     @apply border-accent bg-accent-soft;
   }
 
+  /* Rule Cytoscape would otherwise inject inline (blocked by the CSP); see index.html. */
+  .__________cytoscape_container {
+    position: relative;
+  }
+
   .spinner {
     @apply inline-block size-4 animate-spin rounded-full border-2 border-line-strong border-t-accent;
   }
   @media (prefers-reduced-motion: reduce) {
-    .spinner {
+    /* Rule Cytoscape would otherwise inject inline (blocked by the CSP); see index.html. */
+  .__________cytoscape_container {
+    position: relative;
+  }
+
+  .spinner {
       animation-duration: 2.5s;
     }
   }

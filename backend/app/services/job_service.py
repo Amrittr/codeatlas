@@ -137,7 +137,7 @@ class JobManager:
             return
         job.context.start()
         try:
-            details, index = analyze_archive(
+            details, index, architecture = analyze_archive(
                 job.archive_path,
                 job.workdir / "project",
                 job.file_name,
@@ -162,7 +162,7 @@ class JobManager:
         # Delete the archive and extracted files before the job reports a final state.
         remove_workdir(job.workdir)
         if outcome == JobStatus.COMPLETED:
-            self._store.put(details, index)
+            self._store.put(details, index, architecture)
             job.project_id = details.project.id
             job.context.set_phase("done")
         with self._lock:

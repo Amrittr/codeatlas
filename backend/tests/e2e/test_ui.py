@@ -299,3 +299,36 @@ def test_100k_file_project_stays_responsive(page: Page, server_url, archives, co
     assert explorer_ms < 2000
     assert search_ms < 1000
     assert console_errors == []
+
+
+def test_architecture_map(page: Page, server_url, archives, console_errors):
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(server_url)
+    expect(page.locator("#server-status")).to_contain_text("Server online")
+    upload(page, archives["monorepo"])
+    expect(page.locator("#header-title")).to_have_text("Overview", timeout=15_000)
+
+    page.get_by_role("button", name="Architecture Map").click()
+    expect(page.locator("#header-title")).to_have_text("Architecture Map")
+    canvas = page.locator("#architecture-canvas")
+    expect(canvas).to_have_attribute("data-rendered-nodes", "10")  # 8 components + 2 external services
+    expect(page.locator("#architecture-summary")).to_contain_text("8 components")
+    page.screenshot(path=f"{SCREENSHOTS}/architecture-map.png")
+
+    # The list view carries the same data and is keyboard-accessible.
+    page.locator("[data-mode=list]").click()
+    page.locator('[data-list-item="@shop/api · routes"]').click()
+    expect(page.locator("#architecture-details-title")).to_have_text("@shop/api · routes")
+    expect(page.locator("#component-confidence")).to_have_text("High confidence")
+    expect(page.locator("#component-evidence")).to_contain_text("declares HTTP routes")
+
+    page.locator('[data-list-item="@shop/web → @shop/api (root files)"]').click()
+    expect(page.locator("#architecture-details")).to_contain_text("HTTP (inferred)")
+    expect(page.locator("#connection-evidence")).to_contain_text("/api/orders")
+    page.screenshot(path=f"{SCREENSHOTS}/architecture-http-edge.png")
+
+    # Evidence links open the exact file in the explorer.
+    page.locator("#connection-evidence [data-evidence-link]").first.click()
+    expect(page.locator("#header-title")).to_have_text("File Explorer")
+    expect(page.locator("#details-path")).to_have_text("shop/apps/web/src/lib/api.ts")
+    assert console_errors == []

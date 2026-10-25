@@ -3,17 +3,6 @@ import { h, mount } from "../utils/dom.js";
 import { icon } from "../utils/icons.js";
 
 const PLANNED = {
-  "planned-architecture": {
-    title: "Architecture Map",
-    icon: "network",
-    phase: "Phase 7",
-    summary: "An interactive map of the project's main components (frontend, backend, API routes, data access, authentication, background jobs), built from imports, framework conventions and configuration.",
-    points: [
-      "Components identified from evidence, not from folder names alone",
-      "Uncertain classifications labelled as hypotheses",
-      "Navigate from a module to its source files and dependencies",
-    ],
-  },
   "planned-dependencies": {
     title: "Dependency Graph",
     icon: "git-fork",
@@ -61,7 +50,7 @@ export function renderPlanned(container, key) {
       ),
       h("p", { class: "mt-5 leading-relaxed text-muted" }, page.summary),
       h("ul", { class: "mt-5 flex flex-col gap-2" }, page.points.map((point) => h("li", { class: "flex gap-2 text-sm text-muted" }, h("span", { class: "mt-2 size-1.5 shrink-0 rounded-full bg-subtle" }), point))),
-      h("p", { class: "mt-6 text-xs text-subtle" }, "This release covers secure ZIP analysis, project statistics and the file explorer. See docs/IMPLEMENTATION_PLAN.md for the roadmap."),
+      h("p", { class: "mt-6 text-xs text-subtle" }, "This release covers secure ZIP analysis, project statistics, the file explorer and the generated architecture map. See docs/IMPLEMENTATION_PLAN.md for the roadmap."),
     ),
   );
   return page.title;

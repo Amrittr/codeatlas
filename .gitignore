@@ -7,6 +7,7 @@ __pycache__/
 # Node / frontend build
 node_modules/
 frontend/public/assets/app.css
+frontend/public/vendor/
 
 # Local config and generated samples
 .env

@@ -1,4 +1,4 @@
-# API Reference (v0.3, schema version 3)
+# API Reference (v0.4, schema version 4)
 
 Base path: `/api`. JSON uses camelCase. There is **no authentication** in this release (see
 SECURITY.md). Interactive docs are at `/api/docs` when `CODEATLAS_ENVIRONMENT` is not `production`.
@@ -23,7 +23,7 @@ Every error has the same shape. `code` is stable and meant for programs; `messag
 | Status | Codes |
 |---|---|
 | 400 | `invalid_archive`, `unsafe_archive` |
-| 404 | `project_not_found`, `job_not_found`, `node_not_found`, `not_found` |
+| 404 | `project_not_found`, `job_not_found`, `node_not_found`, `component_not_found`, `architecture_unavailable`, `not_found` |
 | 408 | `analysis_timeout` |
 | 413 | `upload_too_large`, `archive_uncompressed_too_large`, `suspected_decompression_bomb`, `too_many_files`, `too_many_entries`, `too_many_directories`, `archive_too_deep` |
 | 415 | `unsupported_file_type` |
@@ -37,7 +37,7 @@ Problems found **during** a job (for example `unsafe_archive`, `too_many_files`,
 
 ## `GET /api/health`
 
-`200 {"status": "ok", "version": "0.3.0"}`
+`200 {"status": "ok", "version": "0.4.0"}`
 
 ## `GET /api/config`
 
@@ -64,6 +64,7 @@ The public limits and defaults the UI needs.
 | `respectGitignore` | `true`/`false` | `true` | Apply every `.gitignore` in the archive, using git's rules. |
 | `excludePatterns` | text | `""` | Extra gitignore-style patterns, one per line, matched from the archive root. |
 | `includePatterns` | text | `""` | Patterns that are always analyzed. They override exclusions, except `__MACOSX/`. |
+| `analyzeCode` | `true`/`false` | `true` | Parse JS/TS/Python source in memory to build the architecture map. `false` reads no source files. |
 
 Pattern fields: at most 100 patterns of 256 characters each (8 KB per field). Blank lines and
 `#` comments are ignored. Invalid lists are rejected with `422 invalid_patterns` before a job is created.
@@ -102,6 +103,8 @@ Returns `{ job }` as above. `status` is one of `queued`, `running`, `completed`,
 | `planning` | archive entries (validation and exclusion rules) |
 | `extracting` | files to extract |
 | `scanning` | extracted files |
+| `parsing` | source files to parse (architecture map) |
+| `mapping` | — (resolving imports, grouping components) |
 | `indexing` | — (statistics) |
 | `done` | — |
 
@@ -124,7 +127,7 @@ Returns **ProjectDetails**:
 {
   "project": {
     "id": "3c38cce2…", "name": "sample-app", "status": "completed",
-    "schemaVersion": "3", "processingMode": "server",
+    "schemaVersion": "4", "processingMode": "server",
     "createdAt": "2026-10-24T06:29:21Z", "expiresAt": "2026-10-24T06:59:21Z",
     "archive": { "fileName": "sample-app.zip", "sizeBytes": 4016, "entryCount": 27 },
     "durations": { "extractMs": 4, "scanMs": 2, "totalMs": 8 },
@@ -229,3 +232,59 @@ The response has the same shape as `/tree`, plus `matchIds`, `totalMatches` and 
 `nodes` contains the matches and all their ancestors. `children` holds only the pruned
 child lists, so the result renders as a filtered tree. Extension and classification filters
 only ever match files. Excluded paths can match and are marked `excluded`.
+
+## `GET /api/projects/{projectId}/architecture`
+
+The generated architecture map. `status` is `available`, `no_code` (no source files to map) or
+`disabled` (uploaded with `analyzeCode=false`).
+
+```json
+{
+  "projectId": "…", "status": "available",
+  "summary": { "codeFiles": 20, "parsedFiles": 19, "parseErrors": 0, "partiallyParsed": 0, "skippedTooLarge": 0,
+               "imports": 31, "internalImports": 14, "externalPackages": 7, "unresolvedImports": 1, "dynamicUnknown": 1,
+               "languages": [{ "language": "JavaScript", "fileCount": 14 }] },
+  "frameworks": [{ "name": "Express", "role": "api", "confidence": "high", "importingFiles": 4,
+                   "declaredIn": ["shop/apps/api/package.json"] }],
+  "components": [{
+    "id": "c1a2b3c4d5e6", "name": "@shop/api · routes", "path": "shop/apps/api/src/routes", "nodeId": "n…",
+    "packageName": "@shop/api", "role": "api", "roleLabel": "API & routes", "confidence": "high",
+    "evidence": [{ "kind": "import", "detail": "declares HTTP routes in 3 file(s), e.g. /:id",
+                   "path": "shop/apps/api/src/routes/orders.js", "nodeId": "n…", "line": 4 }],
+    "fileCount": 4, "parsedFileCount": 4, "languages": [{ "language": "JavaScript", "fileCount": 4 }],
+    "frameworks": ["Express"], "entryPoints": []
+  }],
+  "externals": [{ "id": "x-payments", "category": "payments", "name": "Payments", "services": ["Stripe (stripe)"] }],
+  "connections": [{
+    "id": "c…->c…", "source": "c…", "target": "c…", "targetType": "component",
+    "importCount": 2, "fileCount": 2, "kinds": ["require"], "confidence": "high",
+    "evidence": [{ "path": "shop/apps/api/src/routes/orders.js", "nodeId": "n…", "line": 2,
+                   "specifier": "../db/client", "target": "shop/apps/api/src/db/client.js" }]
+  }],
+  "unresolvedSamples": [{ "path": "…/missing-import.js", "nodeId": "n…", "line": 1, "specifier": "./does-not-exist", "target": "?" }],
+  "notes": ["Components are folders grouped by package boundaries; …"]
+}
+```
+
+- **Roles**: `frontend`, `api` (declares HTTP routes), `backend` (imports a web framework),
+  `service`, `data`, `auth`, `jobs`, `shared`, `tests`, `config`, `module` (no role evidence).
+- **Evidence kinds**: `import` (imports of known frameworks, declared routes, browser-API use;
+  strongest), `manifest` (declared dependency), `file-types` (UI files or test files),
+  `convention` (folder or file names; weakest), `structure` (imported by several components),
+  `entry-point`.
+- **Confidence**: `high` = import evidence in ≥ 2 files (or 1 plus the manifest); `medium` = some
+  code evidence; `low` = naming conventions only, so treat it as a hypothesis.
+- **Connections**: `kinds` lists the import kinds seen (`static`, `require`, `dynamic`,
+  `reexport`, `type`, `python`) and `http`. An `http`-only connection is inferred by matching a
+  URL path in the client (`fetch("/api/orders/…")`, `/api/…` literals) to a route the server
+  declares (`app.use("/api/orders", …)`, `APIRouter(prefix=…)`, `Blueprint(url_prefix=…)`,
+  `@app.get("/…")`, Django `path()`): `medium` on a two-segment match, `low` on a looser one.
+  `targetType: "external"` connections point at an entry in `externals`.
+- At most 5 evidence items per connection and component, and 20 `unresolvedSamples`.
+
+## `GET /api/projects/{projectId}/architecture/components/{componentId}`
+
+`{ component, files, totalFiles }`. `files` lists at most 500 rows, most-imported first:
+`{ nodeId, path, language, importsInternal, importedBy, externalPackages, parseStatus }`, where
+`parseStatus` is `parsed`, `partial` (recoverable syntax errors), `error`, `too_large` or
+`not_parsed`. `componentId` must match `c` + 12 hex digits, otherwise `422`.

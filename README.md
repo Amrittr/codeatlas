@@ -7,14 +7,23 @@ repositories. This first release (v0.1.0, Phase 1 MVP) securely analyzes a proje
 archive and visualizes its real file and folder structure. Analyses run as background jobs
 with live progress, and what gets analyzed is controlled by `.gitignore` files and your own rules.
 
-> Status: **v0.3.0**. Phase 1 MVP and Phase 2 (large repositories). Dependency graphs, architecture maps, GitHub import and the AI
+> Status: **v0.4.0**. Phases 1–2 complete, plus architecture map v1 (first parts of Phases 4–7). Dependency graphs, architecture maps, GitHub import and the AI
 > assistant are on the [roadmap](docs/IMPLEMENTATION_PLAN.md). The UI marks them as *Planned*.
 
 ## Features in this release
 
 - **Secure ZIP analysis.** Path-traversal, symlink, decompression-bomb and size/count/depth
-  protections are enforced during extraction. Nothing in the archive is executed. The only
-  file contents read are `.gitignore` files, size-bounded, to decide what to skip. Details: [docs/SECURITY.md](docs/SECURITY.md).
+  protections are enforced during extraction. Nothing in the archive is ever executed.
+- **Generated architecture map.** When a project has no architecture diagram, CodeAtlas draws
+  one. It parses JS/TS (tree-sitter) and Python (`ast`) imports, reads package manifests,
+  groups files into components (packages, then top-level source folders), and infers each
+  component's role (frontend, API, backend, business logic, data access, auth, background jobs,
+  shared library, tests). Roles come from imported frameworks, declared routes, browser-API
+  use and naming conventions. It connects components by their imports, links frontends to
+  backends by matching URL paths to declared routes (marked *inferred*), and shows external
+  services (databases, payments, email, AI, cloud). Every box and arrow lists its evidence
+  (file and line), with a confidence. Roles supported only by folder names are shown as dashed
+  "hypotheses". There is an interactive map (Cytoscape) and an accessible list view. Details: [docs/SECURITY.md](docs/SECURITY.md).
 - **Project overview.** File and folder counts, total size, extension distribution,
   classification breakdown (source, test, config, docs, …), detected languages, top-level
   structure, configuration files, largest files, excluded folders and warnings.
@@ -40,8 +49,8 @@ with live progress, and what gets analyzed is controlled by `.gitignore` files a
 
 | Layer | Choice |
 |---|---|
-| Backend | Python ≥ 3.11 (developed on 3.14), FastAPI, Uvicorn, Pydantic v2, `pathspec` (gitignore matching) |
-| Frontend | Vanilla JavaScript ES modules, Tailwind CSS v4 (CLI build), no framework, no bundler |
+| Backend | Python ≥ 3.11 (developed on 3.14), FastAPI, Uvicorn, Pydantic v2, `pathspec` (gitignore matching), tree-sitter + JS/TS grammars (parsing) |
+| Frontend | Vanilla JavaScript ES modules, Tailwind CSS v4 (CLI build), Cytoscape.js (vendored, map only), no framework, no bundler |
 | Storage | None. Results live in server memory with a TTL (see below) |
 | Tests | pytest + FastAPI TestClient, `node --test`, Playwright (Chromium) |
 
@@ -119,5 +128,12 @@ scripts/        sample-archive generator and benchmark
   See docs/TESTING.md for numbers and caveats. Excluded paths do not count toward the file limit.
 - Changing exclusion rules means uploading again: the archive is deleted after each analysis.
 - `.git/info/exclude` and global git excludes are not read. Only `.gitignore` files in the archive are.
-- Classification and language detection use names and extensions only. Contents are not parsed.
+- Classification and language detection use names and extensions only.
+- Architecture map v1: imports are analyzed for JavaScript, TypeScript and Python only. Other
+  languages appear in components without connections. Runtime-only wiring (dependency
+  injection, string-based routing, service-to-service HTTP through gateways) is not proven.
+  HTTP arrows are inferred from matching URL paths. Function-level call graphs and a
+  file-level dependency graph view are not built yet.
+- After upgrading CodeAtlas, hard-refresh the browser once (Cmd+Shift+R / Ctrl+Shift+R) if you
+  previously opened an older version. Newer versions send `Cache-Control: no-cache`.
 - Only ZIP archives are supported (no tar, 7z or rar). No GitHub import yet.

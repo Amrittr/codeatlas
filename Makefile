@@ -18,9 +18,9 @@ frontend/node_modules/.installed: frontend/package.json frontend/package-lock.js
 	cd frontend && npm ci
 	touch $@
 
-## css: compile Tailwind into frontend/public/assets/app.css
+## css: compile Tailwind and copy vendored browser libraries (Cytoscape) into frontend/public
 css:
-	cd frontend && npm run build:css
+	cd frontend && npm run build
 
 watch-css:
 	cd frontend && npm run watch:css

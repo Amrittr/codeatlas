@@ -17,6 +17,8 @@ const PHASES = {
   planning: "Validating entries and applying exclusion rules",
   extracting: "Extracting files safely",
   scanning: "Scanning the folder structure",
+  parsing: "Parsing source files for the architecture map",
+  mapping: "Building the architecture map",
   indexing: "Computing statistics",
   done: "Finishing",
 };
@@ -71,6 +73,7 @@ export function createUploadController({ onCompleted }) {
     options: $("#analysis-options"),
     applyExclusions: $("#apply-exclusions"),
     respectGitignore: $("#respect-gitignore"),
+    analyzeCode: $("#analyze-code"),
     excludePatterns: $("#exclude-patterns"),
     includePatterns: $("#include-patterns"),
     customRules: $("#custom-rules"),
@@ -99,6 +102,7 @@ export function createUploadController({ onCompleted }) {
     return {
       applyDefaultExclusions: els.applyExclusions.checked,
       respectGitignore: els.respectGitignore.checked,
+      analyzeCode: els.analyzeCode.checked,
       excludePatterns: els.excludePatterns.value,
       includePatterns: els.includePatterns.value,
     };
@@ -114,6 +118,7 @@ export function createUploadController({ onCompleted }) {
     if (!saved) return;
     els.applyExclusions.checked = saved.applyDefaultExclusions !== false;
     els.respectGitignore.checked = saved.respectGitignore !== false;
+    els.analyzeCode.checked = saved.analyzeCode !== false;
     els.excludePatterns.value = typeof saved.excludePatterns === "string" ? saved.excludePatterns : "";
     els.includePatterns.value = typeof saved.includePatterns === "string" ? saved.includePatterns : "";
     if (els.excludePatterns.value || els.includePatterns.value) els.customRules.open = true;
@@ -126,7 +131,7 @@ export function createUploadController({ onCompleted }) {
     els.customRulesCount.textContent = String(count);
   }
 
-  for (const input of [els.applyExclusions, els.respectGitignore, els.excludePatterns, els.includePatterns]) {
+  for (const input of [els.applyExclusions, els.respectGitignore, els.analyzeCode, els.excludePatterns, els.includePatterns]) {
     input.addEventListener("input", onOptionsChanged);
     input.addEventListener("change", onOptionsChanged);
   }

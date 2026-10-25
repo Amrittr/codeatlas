@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from app.core.config import DEFAULT_FRONTEND_DIR
+from tests.test_architecture import MONOREPO
 from tests.zip_factory import SAMPLE_PROJECT, build_zip
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -68,6 +69,7 @@ def archives(tmp_path_factory) -> dict[str, Path]:
         "slow": folder / "many-files.zip",
         "built": folder / "built-app.zip",
         "huge": folder / "huge-100k.zip",
+        "monorepo": folder / "shop-monorepo.zip",
     }
     files["sample"].write_bytes(build_zip(SAMPLE_PROJECT))
     files["corrupt"].write_bytes(b"PK\x03\x04" + os.urandom(2048))
@@ -95,6 +97,7 @@ def archives(tmp_path_factory) -> dict[str, Path]:
     )
     # Enough files that analysis takes a few seconds, long enough to observe progress and cancel.
     files["slow"].write_bytes(build_zip([(f"many/d{i % 40}/f{i}.txt", "x") for i in range(18_000)]))
+    files["monorepo"].write_bytes(build_zip(MONOREPO))
     # Same layout as scripts/benchmark.py: 100,000 files in ~3,250 folders.
     extensions = [".py", ".js", ".ts", ".md", ".json", ".css", ".html", ".go", ".java", ".yml"]
     files["huge"].write_bytes(

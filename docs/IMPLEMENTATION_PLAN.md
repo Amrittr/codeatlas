@@ -9,10 +9,10 @@ have been **verified**, not just implemented.
 | 1 | Functional MVP (ZIP → tree + stats) | ✅ Done (v0.1.0) | 0 |
 | 2 | Robust scanning & large repositories | ✅ Done (v0.2.0–v0.3.0) | 1 |
 | 3 | GitHub integration | Planned | 2 |
-| 4 | Project overview & configuration intelligence | Planned (partly started) | 1 |
-| 5 | Code parsing & symbol indexing | Planned | 2, 4 |
-| 6 | Dependency graph | Planned | 5 |
-| 7 | Architecture visualisation | Planned | 4, 6 |
+| 4 | Project overview & configuration intelligence | 🟡 Partly done in v0.4 (frameworks, manifests, entry points) | 1 |
+| 5 | Code parsing & symbol indexing | 🟡 Partly done in v0.4 (imports, routes for JS/TS/Python; no symbols yet) | 2, 4 |
+| 6 | Dependency graph | 🟡 Component-level in v0.4; file-level graph view planned | 5 |
+| 7 | Architecture visualisation | ✅ v1 in v0.4 (generated map, evidence, confidence) | 4, 6 |
 | 8 | AI codebase assistant | Planned | 5, 6 (7 helps) |
 | 9 | Local analysis agent | Planned | 2 |
 | 10 | Teams & enterprise readiness | Planned | 3, 9 |
@@ -66,6 +66,26 @@ GitHub App (least privilege, read-only contents) → repo and branch selection �
 download for a specific commit SHA → the same extraction safety and scan pipeline. Rate-limit
 and auth-error handling. Credentials stay server-side. Needs persistent sessions, so this is
 where PostgreSQL or another store is introduced.
+
+## Architecture map v1 (v0.4.0), a vertical slice through Phases 4–7
+
+Requested so that a project with no architecture diagram gets one generated. Built as one slice
+rather than strictly phase by phase, with these decisions from the product owner: map now and
+deepen later; JS/TS + Python first; real parsers (tree-sitter, `ast`); an interactive map in the app.
+
+| Delivered | Verified by |
+|---|---|
+| Manifest reading: package.json, pyproject, requirements, tsconfig/jsconfig paths, entry points | `test_architecture.py` |
+| Import extraction (tree-sitter JS/TS/TSX, Python `ast`), route and URL extraction, browser-API detection | parser tests |
+| Resolution: relative paths, aliases, workspaces, Python packages and `src/` layouts, built-ins | monorepo and Python fixtures |
+| Components, roles with evidence and confidence, connections, HTTP links, external services | fixture assertions; CodeAtlas's own repo |
+| Interactive Cytoscape map, list view, evidence links into the explorer | e2e `test_architecture_map` |
+| Parse budget with partial maps; option to turn code analysis off | tests |
+
+**Next for the map:** more languages (Java, Go, C#) through new parser adapters; symbol
+indexing (functions and classes with lines, Phase 5); a file-level dependency graph view with
+neighbourhood exploration (Phase 6); route-to-handler linking; detecting existing architecture
+docs and diagrams in the repo; exporting the map (SVG/PNG, Mermaid).
 
 ## Phase 4 — Configuration intelligence
 

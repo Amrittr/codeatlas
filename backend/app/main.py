@@ -19,6 +19,19 @@ from app.repositories.project_store import ProjectStore
 from app.services.job_service import JobManager
 
 ANALYZE_PATH = "/api/projects/analyze"
+
+
+class RevalidatingStaticFiles(StaticFiles):
+    """Static frontend files that browsers must revalidate (cheaply, via ETag) on every load.
+
+    Without an explicit Cache-Control, browsers apply heuristic caching and can keep running an
+    old app.js after an update, which breaks newly added modules.
+    """
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
 MULTIPART_OVERHEAD_BYTES = 1 * MB
 
 
@@ -58,7 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         raise AppError("not_found", "Unknown API endpoint.", 404)
 
     if settings.serve_frontend and settings.frontend_dir.is_dir():
-        app.mount("/", StaticFiles(directory=settings.frontend_dir, html=True), name="frontend")
+        app.mount("/", RevalidatingStaticFiles(directory=settings.frontend_dir, html=True), name="frontend")
 
     # Middleware added last runs first: headers wrap everything, then the body limit, then CORS.
     if settings.cors_origin_list:

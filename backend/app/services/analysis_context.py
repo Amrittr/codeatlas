@@ -19,6 +19,8 @@ PHASE_UNITS = {
     "planning": "entries",
     "extracting": "files",
     "scanning": "files",
+    "parsing": "files",
+    "mapping": None,
     "indexing": None,
     "done": None,
 }
@@ -71,6 +73,10 @@ class AnalysisContext:
             raise AnalysisCancelled
         if self._deadline is not None and time.monotonic() > self._deadline:
             raise AppError("analysis_timeout", "Analysis took longer than the server time limit.", 408)
+
+    def should_stop(self) -> bool:
+        """Non-raising check for code that cannot raise mid-operation (e.g. inside a parser callback)."""
+        return self._cancel.is_set() or (self._deadline is not None and time.monotonic() > self._deadline)
 
     def set_phase(self, phase: str, total: int | None = None) -> None:
         with self._lock:

@@ -22,7 +22,7 @@ def node_by_path(client, pid, path):
 
 
 def test_health(client):
-    assert client.get("/api/health").json() == {"status": "ok", "version": "0.3.0"}
+    assert client.get("/api/health").json() == {"status": "ok", "version": "0.4.0"}
 
 
 def test_public_config_exposes_limits(client):
@@ -203,6 +203,7 @@ def test_frontend_is_served_when_enabled(make_client, tmp_path):
     response = client.get("/")
     assert response.status_code == 200
     assert "CodeAtlas" in response.text
+    assert response.headers["cache-control"] == "no-cache"
     assert client.get("/api/health").status_code == 200
 
 

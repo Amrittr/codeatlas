@@ -9,6 +9,7 @@ from fastapi import APIRouter, File, Form, Path, Query, Request, Response, Uploa
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.repositories.project_store import ProjectStore, StoredProject
+from app.schemas.architecture import ArchitectureResponse, ComponentDetails
 from app.schemas.project import (
     Classification,
     JobResponse,
@@ -52,6 +53,7 @@ def analyze(
     respect_gitignore: Annotated[bool, Form(alias="respectGitignore")] = True,
     exclude_patterns: Annotated[str, Form(alias="excludePatterns", max_length=MAX_PATTERN_TEXT)] = "",
     include_patterns: Annotated[str, Form(alias="includePatterns", max_length=MAX_PATTERN_TEXT)] = "",
+    analyze_code: Annotated[bool, Form(alias="analyzeCode")] = True,
 ) -> JobResponse:
     """Accept an archive and start a background analysis job.
 
@@ -64,6 +66,7 @@ def analyze(
         respect_gitignore=respect_gitignore,
         exclude_text=exclude_patterns,
         include_text=include_patterns,
+        analyze_code=analyze_code,
     )
     workdir = FsPath(tempfile.mkdtemp(prefix="codeatlas-", dir=settings.temp_dir))
     try:
@@ -101,6 +104,28 @@ def delete_project(request: Request, project_id: ProjectId) -> Response:
     if not _store(request).delete(project_id):
         raise AppError("project_not_found", "This analysis does not exist or has expired.", 404)
     return Response(status_code=204)
+
+
+@router.get("/{project_id}/architecture", response_model=ArchitectureResponse)
+def get_architecture(request: Request, project_id: ProjectId) -> ArchitectureResponse:
+    """The generated architecture map: components, roles with evidence, connections, external services."""
+    architecture = _load(request, project_id).architecture
+    if architecture is None:
+        raise AppError("architecture_unavailable", "No architecture map was generated for this analysis.", 404)
+    return architecture.response.model_copy(update={"project_id": project_id})
+
+
+@router.get("/{project_id}/architecture/components/{component_id}", response_model=ComponentDetails)
+def get_component(
+    request: Request,
+    project_id: ProjectId,
+    component_id: Annotated[str, Path(pattern=r"^c[0-9a-f]{12}$")],
+) -> ComponentDetails:
+    architecture = _load(request, project_id).architecture
+    details = architecture.details(component_id) if architecture else None
+    if details is None:
+        raise AppError("component_not_found", "That component is not part of this architecture map.", 404)
+    return details
 
 
 @router.get("/{project_id}/stats", response_model=ProjectStats)

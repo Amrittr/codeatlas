@@ -16,6 +16,7 @@ from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from app.analyzers.architecture.builder import ArchitectureResult
 from app.schemas.project import ProjectDetails
 from app.services.project_index import ProjectIndex
 
@@ -25,6 +26,7 @@ class StoredProject:
     details: ProjectDetails
     index: ProjectIndex
     expires_at: float
+    architecture: ArchitectureResult | None = None
 
 
 class ProjectStore:
@@ -42,10 +44,12 @@ class ProjectStore:
         self._items: OrderedDict[str, StoredProject] = OrderedDict()
         self._lock = threading.Lock()
 
-    def put(self, details: ProjectDetails, index: ProjectIndex) -> StoredProject:
+    def put(self, details: ProjectDetails, index: ProjectIndex, architecture: ArchitectureResult | None = None) -> StoredProject:
         with self._lock:
             self._purge_expired()
-            stored = StoredProject(details=details, index=index, expires_at=self._clock() + self._ttl)
+            stored = StoredProject(
+                details=details, index=index, expires_at=self._clock() + self._ttl, architecture=architecture
+            )
             self._items[details.project.id] = stored
             while len(self._items) > 1 and (len(self._items) > self._max or self._over_node_budget()):
                 self._items.popitem(last=False)

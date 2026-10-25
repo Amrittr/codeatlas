@@ -31,8 +31,25 @@ Extracted files are created with mode `0600` inside a `0700` directory made by
 ## Source-code handling
 
 - Uploaded code is **never executed**. Dependencies are never installed and no scripts run.
-- The scanner calls `lstat` only. **File contents are not read**, with one exception:
-  `.gitignore` files, which decide what is excluded. Classification uses names.
+- The scanner calls `lstat` only. Classification uses names. File contents are read in three
+  cases only, always from the private extraction folder and always parsed as data:
+  1. `.gitignore` files (≤ 256 KB each, ≤ 500), to decide what to exclude.
+  2. Package manifests and compiler configs (`package.json`, `pyproject.toml`, `requirements*.txt`,
+     `tsconfig.json`/`jsconfig.json`, ≤ 256 KB each), read with `json`/`tomllib` to find
+     package boundaries, declared dependencies and path aliases. `setup.py` and `manage.py` are
+     recognised by name only, never read or executed.
+  3. **Architecture map** (on by default; the upload option "Map the architecture" turns it
+     off): JavaScript, TypeScript and Python source files (≤ 512 KB each) are parsed in memory,
+     with Python's `ast` and tree-sitter, to extract import statements, declared route paths
+     and URL paths.
+- **Code is parsed, never executed, imported, evaluated or type-checked.** tree-sitter is a C
+  parser designed for untrusted, incomplete input. It is fed through a read callback whose
+  progress hook enforces cancellation and the time limit. `ast.parse` failures (syntax errors,
+  pathological nesting) are caught per file. A parse budget (`MAX_PARSE_SECONDS`, 150 s) stops
+  parsing gracefully, and the map is marked partial.
+- What is kept from parsing: import specifiers, route/URL path strings, line numbers, and
+  derived components and roles. **No source code is stored.** File contents are released
+  per file, and the extraction folder is deleted when the job ends.
 - Paths excluded by any rule are **never extracted**. Excluded `.env` files therefore never
   touch the disk.
 - The upload is copied into a private per-job work directory (`0700`, archive `0600`). The job
@@ -61,6 +78,11 @@ Extracted files are created with mode `0600` inside a `0700` directory made by
   belong in environment variables only, and are never sent to the browser.
 
 ## HTTP hardening
+
+Frontend files are served with `Cache-Control: no-cache` (revalidated via ETag), so a browser
+never runs a stale script after an upgrade. The vendored Cytoscape library is served from our
+own origin. Its one injected inline `<style>` is pre-empted (`index.html` marks it as present, and
+`input.css` carries the rule), so the CSP does not need `unsafe-inline`.
 
 All responses get `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` and
 `X-Frame-Options: DENY`. They also get a strict CSP: `default-src 'self'`, no inline

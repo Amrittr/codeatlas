@@ -22,6 +22,12 @@ export const EXCLUSION_REASONS = {
   custom: "Custom rule",
 };
 
+export const CONFIDENCE_LABELS = {
+  high: "High confidence",
+  medium: "Medium confidence",
+  low: "Low confidence (hypothesis)",
+};
+
 export const SKIP_REASONS = {
   symlink_not_followed: "Symbolic link (not followed)",
   special_file: "Device, pipe or socket",
@@ -38,6 +44,23 @@ export const SKIP_REASONS = {
   permission_denied: "Permission denied",
   unreadable: "Could not be read",
 };
+
+/** Architecture roles: label, CSS colour token (also read by the canvas renderer), map column. */
+export const ROLES = {
+  frontend: { label: "Frontend / UI", token: "--color-cls-source", column: 0 },
+  tests: { label: "Tests", token: "--color-cls-test", column: 0 },
+  api: { label: "API & routes", token: "--color-cls-documentation", column: 1 },
+  backend: { label: "Backend server", token: "--color-cls-data", column: 1 },
+  service: { label: "Business logic", token: "--color-accent-strong", column: 2 },
+  auth: { label: "Authentication", token: "--color-cls-asset", column: 2 },
+  jobs: { label: "Background jobs", token: "--color-cls-config", column: 2 },
+  module: { label: "Module", token: "--color-cls-other", column: 2 },
+  shared: { label: "Shared library", token: "--color-cls-generated", column: 3 },
+  config: { label: "Configuration", token: "--color-cls-config", column: 3 },
+  data: { label: "Data access", token: "--color-warn", column: 3 },
+};
+
+export const EXTERNAL_COLUMN = 4;
 
 /** Bar colours for the extension chart, cycled by rank. */
 export const SERIES_COLORS = [

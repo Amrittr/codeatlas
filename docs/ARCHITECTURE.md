@@ -23,6 +23,10 @@ cancel DELETE /api/jobs/{id} ──────────────▶   ├
                                                ├─ scan_service.scan_directory        (lstat only)
                                                │     excluded records injected as tree nodes
                                                │     analyzers: language, config, classifier
+                                               ├─ generated_detector (folder evidence)
+                                               ├─ architecture.builder (if analyzeCode)
+                                               │     manifests → parsers (ast, tree-sitter) →
+                                               │     resolver → components, roles, connections
                                                ├─ statistics_service.compute_statistics
                                                ▼
                                              work dir deleted, then the job is marked final
@@ -53,6 +57,8 @@ reuse `scan_directory`, statistics and the index unchanged.
 | `repositories/project_store.py` | In-memory TTL + LRU store |
 | `analyzers/` | Language detection, config-file recognition, classification |
 | `analyzers/generated_detector.py` | Evidence-based build-output folder detection |
+| `analyzers/parsers/` | Language adapters returning imports, routes, URL references and browser-API use: `python_parser` (ast), `javascript_parser` (tree-sitter JS/TS/TSX) |
+| `analyzers/architecture/` | `manifests` (package.json, pyproject, requirements, tsconfig paths), `resolver` (imports → files or packages), `http_links` (URL-path matching), `knowledge` (framework and service catalogue), `builder` (grouping, roles, connections) |
 | `analyzers/exclusions.py` | `ExclusionPolicy`: default rules, custom patterns and `.gitignore` semantics (via `pathspec`) |
 | `api/routes/` | `health.py` (health, public config), `projects.py`, `jobs.py` |
 
@@ -169,6 +175,37 @@ code-generator suffix). The rules:
 The shallowest qualifying folder is reported, and its files are reclassified. Folders are
 never excluded by detection.
 
+## Architecture map (v1)
+
+`builder.build_architecture` runs inside the job while the extracted files still exist:
+
+1. **Manifests** become package boundaries, declared dependencies, entry points and tsconfig
+   path aliases.
+2. **Parsing** happens per file, bounded by size (512 KB), the job's time limit and a parse
+   budget. Each parse yields import statements with lines; route declarations (`app.get('/x')`,
+   `router.post`, `app.use('/api/x')`, FastAPI/Flask decorators, `APIRouter(prefix)`,
+   `Blueprint(url_prefix)`, Django `path()`); URL paths used by clients; and use of browser globals.
+3. **Resolution** handles relative paths with extension and index probing (including
+   `.js` → `.ts`), tsconfig `paths`, workspace package names (through `main`/`src/index`), and
+   Python packages (relative levels, `from x import submodule`, `src/` layouts, any top-level
+   folder as a root). The rest becomes external packages, built-ins (Node core, Python stdlib)
+   or *unresolved*.
+4. **Grouping**: package boundaries first. Packages under 12 code files stay one component.
+   Larger ones split by top-level source folder, passing through `src/`; folders of 15+ files
+   with subfolders split again, up to 36 components. Names are relative to the package's main
+   source folder.
+5. **Roles** are scored per component. Import evidence counts 3 per file (framework imports;
+   declared routes → `api`; web-framework import → `backend`; browser globals → `frontend`).
+   Manifest dependencies count 2, UI/test file shares up to 4/10, and folder and Python file-name
+   conventions 1–1.5. A weak-evidence leaf imported by 2+ non-test components becomes `shared`.
+6. **Connections**: file-level import edges are aggregated per component pair (with up to 5
+   evidence lines), then HTTP links are added (`http_links`) and service imports (`knowledge.EXTERNAL_SERVICES`).
+
+Frontend: `views/architecture.js` lazily imports `vendor/cytoscape.esm.min.mjs`. It lays layers
+out top to bottom (UI/tests → API/server → logic/auth/jobs → shared/data → external) with a
+preset layout, so the picture is deterministic. A list view renders the same data with buttons
+for keyboard and screen-reader use.
+
 ## Decisions
 
 | Decision | Why |
@@ -186,6 +223,11 @@ never excluded by detection.
 | Generated folders are labelled, not excluded | Spec: never silently drop meaningful files. Names are evidence, not proof. |
 | Slotted records internally, Pydantic at the boundary | Measured 2.7× less retained memory, with no change to the API contract. |
 | Memory budget in nodes, not projects | Retained memory is proportional to nodes. 10 small projects and 1 huge one cost very different amounts. |
+| tree-sitter and `ast`, not regular expressions | Comments and strings that look like imports are never reported, and syntax errors degrade per file. Measured ~480 real files/s per core. |
+| HTTP links inferred and labelled as such | The spec requires uncertainty to be explicit. Matching URL paths is useful evidence but not proof of runtime routing. |
+| Roles from imports > routes > file types > names | Folder names alone never produce more than *low* confidence. |
+| Cytoscape vendored and loaded lazily | Strict CSP (`'self'` only) and no load cost for users who never open the map. |
+| Frontend files served `Cache-Control: no-cache` | Found while testing: heuristic caching kept an old `app.js`, so new modules were missing. |
 | Statistics count analyzed paths only | Excluded counts are reported separately (`excluded*`), so totals mean "what CodeAtlas looked at". |
 
 ## Extension points

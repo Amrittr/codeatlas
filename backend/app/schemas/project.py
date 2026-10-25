@@ -14,7 +14,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 
 
 class CamelModel(BaseModel):
@@ -115,6 +115,9 @@ class ProjectSummary(CamelModel):
     durations: Durations
     exclusion_settings: ExclusionSettings
     node_count: int
+    code_analysis: bool = Field(
+        default=True, description="Whether JS/TS/Python sources were parsed (read in memory) to build the architecture map."
+    )
 
 
 class ExtensionStat(CamelModel):

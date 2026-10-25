@@ -56,6 +56,19 @@ folders not flagged; excluded files not counted as evidence; generated counts in
 A wrapper folder is not flagged because of its generated child: the first implementation got
 this wrong, and these tests caught it.
 
+**`tests/test_architecture.py`** (v0.4, 18 cases): parsers ignore look-alike imports in comments
+and strings, count computed targets, handle TS type-only imports and re-exports, Python
+relative levels and syntax errors, the size cap and cancellation (which exposed a tree-sitter
+`ValueError` on cancel, now handled). Route and client URL detection, including ignoring
+`client.get(...)` in tests. A realistic monorepo (React web app with tsconfig aliases,
+workspace UI package, Express API with Prisma, Stripe, JWT and BullMQ): exact component set and
+roles, evidence locations, workspace and alias resolution, the frontend → API HTTP link with
+evidence on both sides, external services, frameworks, entry points, unresolved and dynamic
+imports. A Python Flask/SQLAlchemy/Celery project with a `src/` layout (which exposed an
+ancestor-folder resolver bug, now fixed). Turning code analysis off, projects without code,
+generated and excluded files not parsed, the parse budget producing a partial map, and
+endpoint validation.
+
 **`tests/test_classifier.py`**: 33 classification cases, language detection, config labels.
 
 **`tests/test_api.py`**: response shapes, tree depth, subtrees, reveal, search (partial,
@@ -74,7 +87,9 @@ traversal, non-ZIP, too large); planned-feature pages; session restore and disca
 horizontal scroll at 390 px. Phase 2 adds: `.gitignore` and custom rules entered in the UI and
 shown in the overview, tree and details panel; options remembered across reloads; live job
 progress with real counts on an 18,000-file archive, then cancel; and a running job resumed
-after a page reload. The main flows also fail on any browser console error. Screenshots go to
+after a page reload. v0.4 adds the architecture map: it renders with 10 nodes, the list view
+and details work, an HTTP edge shows its evidence, and an evidence link opens the exact file in
+the explorer (no console errors, which also guards the CSP). The main flows also fail on any browser console error. Screenshots go to
 `backend/e2e-screenshots/`.
 
 The tests were checked by mutation. Disabling the traversal, symlink or per-file-size guard
@@ -88,12 +103,12 @@ folders, JS, TS, Python, CSS, SVG and CSV files, hidden files, files without ext
 Unicode name, duplicate basenames (`index.js` twice), an empty folder, config files,
 `node_modules/` and `.git/`. `make sample` writes it to `samples/sample-project.zip` for manual use.
 
-## Latest results (2026-10-24, v0.3.0)
+## Latest results (2026-10-25, v0.4.0)
 
 ```
-backend:   184 passed
+backend:   202 passed
 frontend:   14 passed
-e2e:        18 passed (Chromium, headless; includes a 100,000-file upload)
+e2e:        19 passed (Chromium, headless; includes a 100,000-file upload and the architecture map)
 ```
 
 ## Benchmarks
@@ -121,6 +136,17 @@ generated-folder detection, deleting the extracted files, and job polling.
 machine): with a 100,000-file project loaded, the explorer opens in about 60 ms, and a search
 returns and renders in about 90 ms (excluding the 200 ms typing debounce). "Expand all"
 switches to three levels, and fewer than 120 tree rows exist in the DOM.
+
+### Architecture map cost (v0.4.0)
+
+- **Parser throughput on real code** (1,756 JS/TS/Python files, 20.5 MB, from installed
+  packages): **~480 files/s, 5.6 MB/s** on one core. tree-sitter queries were measured as an
+  alternative to the node walk and were not faster, because parsing itself dominates.
+- **Synthetic benchmark with parsing on:** 20k files 4.35 s (was 4.0), 100k files 21.8 s (was
+  17.9). Retained memory went from 0.67 to 0.75 KB per node.
+- A real 100k-file repository with average-size files could need ~200 s of parsing. The
+  `MAX_PARSE_SECONDS` budget (150 s) makes such maps partial (with a note) rather than failing
+  the analysis.
 
 ### What the benchmarks changed (v0.3.0)
 

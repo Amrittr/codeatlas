@@ -47,7 +47,7 @@ export function createDetailsPanel({ onSelectParent, onShowInTree, onCopied }) {
       node.excluded ? excludedBanner(node) : null,
       node.generated ? generatedBanner(node) : null,
       section("Observed", isDirectory ? directoryFacts(node) : fileFacts(node)),
-      isDirectory ? null : section("Inferred", inferredFacts(node, info), "From the file name and extension. The file's contents were not read."),
+      isDirectory ? null : section("Inferred", inferredFacts(node, info), "Based on the file name and extension only."),
       h(
         "div",
         { class: "mt-5 flex flex-wrap gap-2" },

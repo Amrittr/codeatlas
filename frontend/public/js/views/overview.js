@@ -64,7 +64,7 @@ export function renderOverview(container, { details, model, onReveal }) {
       h(
         "p",
         { class: "pb-4 text-xs text-subtle" },
-        "Counts, paths and sizes are observed directly from the archive. Classifications and languages are inferred from file names and extensions. No file contents were read except .gitignore files, which decide what to skip.",
+        "Counts, paths and sizes are observed directly from the archive. Classifications and languages are inferred from file names and extensions. File contents read: .gitignore files and package manifests, plus JS/TS/Python source for the architecture map (when enabled), parsed in memory and never run.",
       ),
     ),
   );
@@ -87,6 +87,7 @@ function summaryStrip(project, stats) {
     item("Scan duration", formatDuration(project.durations.totalMs)),
     item("Indexed nodes", formatNumber(project.nodeCount)),
     item("Exclusion rules", describeRules(project.exclusionSettings)),
+    item("Architecture map", project.codeAnalysis ? "Generated" : "Off"),
     item("Processing", "Server mode"),
     stats.totalFiles === 0 ? h("span", { class: "chip border-warn/40 text-warn" }, "Empty project") : null,
   );

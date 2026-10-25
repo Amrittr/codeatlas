@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     max_queued_jobs: int = Field(4, ge=0)
     job_ttl_seconds: int = Field(600, gt=0)
     max_tree_response_nodes: int = Field(25_000, gt=0)
+    # Source parsing for the architecture map (~480 real files/s per core, measured). Past this budget
+    # the remaining files are left unparsed and the map is marked partial instead of failing.
+    max_parse_seconds: float = Field(150.0, gt=0)
 
     # In-memory result retention.
     project_ttl_seconds: int = Field(1800, gt=0)

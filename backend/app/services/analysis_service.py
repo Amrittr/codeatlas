@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from app.analyzers.architecture.builder import ArchitectureResult, build_architecture, empty_architecture
 from app.analyzers.exclusions import REASON_LABELS, ExclusionPolicy, PatternError, parse_pattern_text
 from app.analyzers.generated_detector import detect_generated_folders
 from app.core.config import Settings
@@ -50,9 +51,18 @@ class AnalysisOptions:
     respect_gitignore: bool = True
     exclude_patterns: list[str] = field(default_factory=list)
     include_patterns: list[str] = field(default_factory=list)
+    analyze_code: bool = True
 
     @classmethod
-    def from_form(cls, *, apply_default_rules: bool, respect_gitignore: bool, exclude_text: str, include_text: str) -> AnalysisOptions:
+    def from_form(
+        cls,
+        *,
+        apply_default_rules: bool,
+        respect_gitignore: bool,
+        exclude_text: str,
+        include_text: str,
+        analyze_code: bool = True,
+    ) -> AnalysisOptions:
         """Parse and validate user-supplied patterns. Raises ``AppError`` (422) with a readable message."""
         try:
             options = cls(
@@ -60,6 +70,7 @@ class AnalysisOptions:
                 respect_gitignore=respect_gitignore,
                 exclude_patterns=parse_pattern_text(exclude_text, label="Exclude patterns"),
                 include_patterns=parse_pattern_text(include_text, label="Include patterns"),
+                analyze_code=analyze_code,
             )
             options.policy()  # compile once now so invalid patterns fail the request, not the job
         except PatternError as error:
@@ -93,7 +104,7 @@ def analyze_archive(
     settings: Settings,
     options: AnalysisOptions,
     context: AnalysisContext,
-) -> tuple[ProjectDetails, ProjectIndex]:
+) -> tuple[ProjectDetails, ProjectIndex, ArchitectureResult]:
     started = time.perf_counter()
     policy = options.policy()
 
@@ -116,6 +127,13 @@ def analyze_archive(
     nodes = scan.nodes
     excluded_entry_count = sum(item.entry_count for item in report.excluded.values())
     generated_folders = detect_generated_folders(nodes, scan.children, ROOT_ID)
+    # Reads JS/TS/Python sources from the private extraction folder, which still exists here.
+    architecture = (
+        build_architecture(extract_dir, nodes, ROOT_ID, context, parse_budget_seconds=settings.max_parse_seconds)
+        if options.analyze_code
+        else empty_architecture("disabled")
+    )
+    context.set_phase("indexing")
     stats = compute_statistics(
         nodes, ROOT_ID, excluded_entry_count=excluded_entry_count, generated_folders=generated_folders
     )
@@ -158,6 +176,7 @@ def analyze_archive(
             gitignore_files=policy.gitignore_sources,
         ),
         node_count=len(nodes),
+        code_analysis=options.analyze_code,
     )
     details = ProjectDetails(
         project=summary,
@@ -173,7 +192,7 @@ def analyze_archive(
         summary.id, stats.total_files, stats.total_directories, len(exclusions), len(skipped_pairs),
         summary.durations.total_ms,
     )
-    return details, index
+    return details, index, architecture
 
 
 def _project_name(nodes: dict, children: dict[str, list[str]], fallback: str) -> str:
