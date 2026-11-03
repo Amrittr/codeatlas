@@ -91,14 +91,23 @@ function renderHeader() {
 
 for (const button of els.nav) {
   button.addEventListener("click", () => {
-    if (!button.disabled) showView(button.dataset.nav);
+    if (button.getAttribute("aria-disabled") === "true") {
+      toast("Analyze a project first: upload a .zip on the Analyze page.");
+      showView("upload");
+      return;
+    }
+    showView(button.dataset.nav);
   });
 }
 
 function setProjectNavEnabled(enabled) {
   for (const button of els.nav) {
-    if (["overview", "explorer", "architecture"].includes(button.dataset.nav)) button.disabled = !enabled;
+    if ("needsProject" in button.dataset) {
+      button.setAttribute("aria-disabled", String(!enabled));
+      button.title = enabled ? "" : "Analyze a project first";
+    }
   }
+  $("#nav-locked-hint").hidden = enabled;
 }
 
 /* ---------- Toasts ---------- */

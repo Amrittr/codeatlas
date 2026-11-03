@@ -171,7 +171,7 @@ def test_upload_errors_are_explained(page: Page, server_url, archives, archive, 
     expect(page.locator("#upload-error")).to_be_visible()
     expect(page.locator("#upload-error-title")).to_have_text(title)
     expect(page.locator("#upload-error-message")).to_contain_text(message)
-    expect(page.locator("[data-nav=explorer]")).to_be_disabled()
+    expect(page.locator("[data-nav=explorer]")).to_have_attribute("aria-disabled", "true")
 
 
 def test_planned_features_are_marked(page: Page, server_url):
@@ -239,7 +239,7 @@ def test_job_progress_and_cancel(page: Page, server_url, archives):
     page.screenshot(path=f"{SCREENSHOTS}/job-progress.png")
     page.locator("#cancel-upload").click()
     expect(page.locator("#upload-error-title")).to_have_text("Analysis cancelled", timeout=15_000)
-    expect(page.locator("[data-nav=explorer]")).to_be_disabled()
+    expect(page.locator("[data-nav=explorer]")).to_have_attribute("aria-disabled", "true")
 
 
 def test_running_job_resumes_after_reload(page: Page, server_url, archives):
@@ -332,3 +332,22 @@ def test_architecture_map(page: Page, server_url, archives, console_errors):
     expect(page.locator("#header-title")).to_have_text("File Explorer")
     expect(page.locator("#details-path")).to_have_text("shop/apps/web/src/lib/api.ts")
     assert console_errors == []
+
+
+def test_locked_views_explain_themselves(page: Page, server_url, archives):
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.goto(server_url)
+    expect(page.locator("#server-status")).to_contain_text("Server online")
+    expect(page.locator("#nav-locked-hint")).to_be_visible()
+    architecture = page.locator("[data-nav=architecture]")
+    expect(architecture).to_have_attribute("aria-disabled", "true")
+    architecture.click(force=True)  # Playwright skips aria-disabled elements; real users can still click them
+    expect(page.locator("#toast-region")).to_contain_text("Analyze a project first")
+    expect(page.locator("#header-title")).to_have_text("Analyze a project")
+
+    upload(page, archives["sample"])
+    expect(page.locator("#header-title")).to_have_text("Overview", timeout=15_000)
+    expect(architecture).to_have_attribute("aria-disabled", "false")
+    expect(page.locator("#nav-locked-hint")).to_be_hidden()
+    architecture.click()
+    expect(page.locator("#header-title")).to_have_text("Architecture Map")

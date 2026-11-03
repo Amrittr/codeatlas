@@ -31,9 +31,10 @@
         <nav aria-label="Primary" class="px-3 pb-3 lg:flex-1 lg:pb-0">
           <ul class="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible" id="primary-nav">
             <li><button type="button" class="nav-item whitespace-nowrap" data-nav="upload"><span data-icon="upload"></span>Analyze</button></li>
-            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="overview" disabled><span data-icon="dashboard"></span>Overview</button></li>
-            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="explorer" disabled><span data-icon="list-tree"></span>File Explorer</button></li>
-            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="architecture" disabled><span data-icon="network"></span>Architecture Map</button></li>
+            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="overview" aria-disabled="true" data-needs-project><span data-icon="dashboard"></span>Overview</button></li>
+            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="explorer" aria-disabled="true" data-needs-project><span data-icon="list-tree"></span>File Explorer</button></li>
+            <li><button type="button" class="nav-item whitespace-nowrap" data-nav="architecture" aria-disabled="true" data-needs-project><span data-icon="network"></span>Architecture Map</button></li>
+            <li class="hidden px-3 pt-1 text-[11px] leading-snug text-subtle lg:block" id="nav-locked-hint">Analyze a project to open these views.</li>
             <li class="hidden pt-4 pb-1 pl-3 text-[11px] font-semibold tracking-wider text-subtle uppercase lg:block" aria-hidden="true">Planned</li>
             <li><button type="button" class="nav-item whitespace-nowrap" data-nav="planned-dependencies"><span data-icon="git-fork"></span>Dependencies<span class="badge-planned ml-auto lg:hidden">Planned</span></button></li>
             <li><button type="button" class="nav-item whitespace-nowrap" data-nav="planned-assistant"><span data-icon="message"></span>Codebase Assistant<span class="badge-planned ml-auto lg:hidden">Planned</span></button></li>
