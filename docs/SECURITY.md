@@ -42,11 +42,14 @@ Extracted files are created with mode `0600` inside a `0700` directory made by
      off): JavaScript, TypeScript and Python source files (≤ 512 KB each) are parsed in memory,
      with Python's `ast` and tree-sitter, to extract import statements, declared route paths
      and URL paths.
-- **Code is parsed, never executed, imported, evaluated or type-checked.** tree-sitter is a C
-  parser designed for untrusted, incomplete input. It is fed through a read callback whose
-  progress hook enforces cancellation and the time limit. `ast.parse` failures (syntax errors,
-  pathological nesting) are caught per file. A parse budget (`MAX_PARSE_SECONDS`, 150 s) stops
-  parsing gracefully, and the map is marked partial.
+- **Code is parsed, never executed, imported, evaluated or type-checked.** Parsing runs in a
+  separate worker process, because native parsers can misbehave on hostile input: tree-sitter's
+  error recovery is quadratic on some inputs (a 512 KB file of quote characters takes minutes)
+  and its progress callback segfaulted on Python 3.11, so it is not used. Any file slower than
+  `MAX_PARSE_FILE_SECONDS` (5 s) is killed and reported as unparsed, a worker crash loses only
+  that file, and cancellation takes effect mid-file. `ast.parse` failures are caught per file.
+  A parse budget (`MAX_PARSE_SECONDS`, 150 s) stops parsing gracefully, and the map is marked
+  partial. Only file paths go to the worker; only extracted facts come back.
 - What is kept from parsing: import specifiers, route/URL path strings, line numbers, and
   derived components and roles. **No source code is stored.** File contents are released
   per file, and the extraction folder is deleted when the job ends.
@@ -106,4 +109,5 @@ so no code is sent to any third party.
 
 ## Reporting
 
-Report suspected vulnerabilities privately to the maintainers rather than in a public issue.
+Please do not open a public issue for a suspected vulnerability. Use GitHub's private reporting:
+[Report a vulnerability](https://github.com/Amrittr/codeatlas/security/advisories/new).

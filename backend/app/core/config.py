@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     # Source parsing for the architecture map (~480 real files/s per core, measured). Past this budget
     # the remaining files are left unparsed and the map is marked partial instead of failing.
     max_parse_seconds: float = Field(150.0, gt=0)
+    # Parsing runs in a child process; a file slower than this (hostile input) is killed and skipped.
+    max_parse_file_seconds: float = Field(5.0, gt=0)
 
     # In-memory result retention.
     project_ttl_seconds: int = Field(1800, gt=0)

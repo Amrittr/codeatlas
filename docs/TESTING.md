@@ -69,6 +69,11 @@ ancestor-folder resolver bug, now fixed). Turning code analysis off, projects wi
 generated and excluded files not parsed, the parse budget producing a partial map, and
 endpoint validation.
 
+Parser robustness (v0.4.1): hostile inputs at the size cap (extreme nesting, NUL bytes,
+invalid UTF-8) on every language; the worker process kills a quadratic-time file at its time
+limit and recovers, cancels mid-file, restarts after a crash, and cleans unencodable strings;
+a hostile file inside a project does not stop the map.
+
 **`tests/test_classifier.py`**: 33 classification cases, language detection, config labels.
 
 **`tests/test_api.py`**: response shapes, tree depth, subtrees, reveal, search (partial,
@@ -103,13 +108,16 @@ folders, JS, TS, Python, CSS, SVG and CSV files, hidden files, files without ext
 Unicode name, duplicate basenames (`index.js` twice), an empty folder, config files,
 `node_modules/` and `.git/`. `make sample` writes it to `samples/sample-project.zip` for manual use.
 
-## Latest results (2026-10-25, v0.4.0)
+## Latest results (2026-11-03, v0.4.1)
 
 ```
-backend:   202 passed
+backend:   248 passed (on both Python 3.11.16 and 3.14.6)
 frontend:   14 passed
-e2e:        19 passed (Chromium, headless; includes a 100,000-file upload and the architecture map)
+e2e:        20 passed (Chromium, headless; includes a 100,000-file upload and the architecture map)
 ```
+
+CI runs the backend and frontend suites on Linux with Python 3.11 and 3.14, plus the browser
+tests except the 100,000-file timing test, which is meaningful only on known hardware.
 
 ## Benchmarks
 
@@ -139,6 +147,8 @@ switches to three levels, and fewer than 120 tree rows exist in the DOM.
 
 ### Architecture map cost (v0.4.0)
 
+- Since v0.4.1 parsing runs in a worker process. Re-measured at 20k files: 4.22 s, so no
+  measurable cost compared with in-process parsing (4.35 s). The other figures predate it.
 - **Parser throughput on real code** (1,756 JS/TS/Python files, 20.5 MB, from installed
   packages): **~480 files/s, 5.6 MB/s** on one core. tree-sitter queries were measured as an
   alternative to the node walk and were not faster, because parsing itself dominates.
@@ -167,5 +177,5 @@ can be several times slower; the 300 s budget allows for that. `MAX_ARCHIVE_ENTR
 ## Not covered yet
 
 - Cross-browser runs (Firefox, WebKit) and automated accessibility audits (axe).
-- Windows hosts. Extraction logic is OS-neutral, but the suite has run on macOS only.
+- Windows hosts. The suite runs on macOS and Linux only.
 - Load testing of concurrent uploads beyond the `server_busy` unit test.

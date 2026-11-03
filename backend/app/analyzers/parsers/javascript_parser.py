@@ -20,7 +20,6 @@ import tree_sitter_typescript
 
 from app.analyzers.parsers import ImportRecord, ParseResult
 
-_CHUNK = 64 * 1024
 ROUTE_METHODS = {b"get", b"post", b"put", b"patch", b"delete", b"all", b"use", b"route", b"options", b"head"}
 CLIENT_FUNCTIONS = {b"fetch", b"axios", b"ky", b"request", b"got", b"$fetch", b"useFetch", b"useSWR"}
 BROWSER_GLOBALS = {b"document", b"window", b"localStorage", b"sessionStorage", b"navigator", b"location", b"history"}
@@ -76,17 +75,12 @@ def _is_router_object(node: tree_sitter.Node | None) -> bool:
 
 
 def parse_javascript_imports(data: bytes, extension: str, should_stop: Callable[[], bool]) -> ParseResult:
-    # A parser per call: tree-sitter parsers are not thread-safe and are cheap to create.
-    parser = tree_sitter.Parser(_language(extension))
-    try:
-        tree = parser.parse(
-            lambda offset, _point: data[offset : offset + _CHUNK],
-            progress_callback=lambda _offset, _point: should_stop(),
-        )
-    except ValueError:  # tree-sitter raises "Parsing failed" when the progress callback cancels
-        tree = None
-    if tree is None:
+    if should_stop():
         return ParseResult(error="parse_cancelled")
+    # A parser per call: tree-sitter parsers are not thread-safe and are cheap to create.
+    # Parse plain bytes: tree-sitter 0.26's progress_callback segfaults on Python 3.11. Files are
+    # capped at MAX_PARSE_BYTES, so the caller's per-file checkpoints bound cancellation latency.
+    tree = tree_sitter.Parser(_language(extension)).parse(data)
 
     result = ParseResult(partial=tree.root_node.has_error)
     stack = [tree.root_node]

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import sys
+import time
+
 import pytest
 
 from app.analyzers.parsers import MAX_PARSE_BYTES, parse_imports
+from app.analyzers.parsers.worker import IsolatedParser
 from tests.zip_factory import build_zip
 
 MONOREPO = [
@@ -100,6 +104,89 @@ def test_python_parser_relative_levels_and_syntax_errors():
 def test_parser_size_cap_and_cancellation():
     assert parse_imports(b"x" * (MAX_PARSE_BYTES + 1), ".js", lambda: False).error == "too_large"
     assert parse_imports(b"const a = 1;\n" * 5000, ".js", lambda: True).error == "parse_cancelled"
+
+
+@pytest.mark.parametrize("extension", [".js", ".jsx", ".ts", ".tsx", ".py"])
+@pytest.mark.parametrize(
+    "hostile",
+    [
+        b"(" * (MAX_PARSE_BYTES // 2),
+        b"[" * (MAX_PARSE_BYTES // 2),
+        b"{" * (MAX_PARSE_BYTES // 2),
+        b"<a>" * (MAX_PARSE_BYTES // 8),
+        b"import " * (MAX_PARSE_BYTES // 8),
+        b"\x00" * 4096,
+        b"\xff\xfe" * 4096,
+        bytes(range(256)) * 64,
+    ],
+    ids=["parens", "brackets", "braces", "jsx-tags", "imports", "nul", "invalid-utf8", "all-bytes"],
+)
+def test_parsers_survive_hostile_input(hostile, extension):
+    """Uploads are untrusted: a parser may report an error, but must not raise."""
+    assert parse_imports(hostile, extension, lambda: False).error in (None, "syntax_error")
+
+
+QUADRATIC_INPUT = b'"' * (MAX_PARSE_BYTES // 2)  # tree-sitter error recovery takes minutes on this
+
+
+def test_isolated_parser_returns_real_results(tmp_path):
+    source = tmp_path / "a.ts"
+    source.write_text('import a from "./a";\nfetch("/api/x");\nwindow.y;\n')
+    with IsolatedParser(per_file_seconds=30) as parser:
+        first = parser.parse(source, ".ts")
+        second = parser.parse(source, ".ts")  # the same worker serves many files
+    assert [(i.specifier, i.line, i.kind) for i in first.imports] == [("./a", 1, "static")]
+    assert set(first.url_refs) == {("/api/x", 2)} and first.browser_api is True
+    assert second == first
+
+
+def test_isolated_parser_kills_slow_files_and_recovers(tmp_path):
+    hostile, normal = tmp_path / "quotes.js", tmp_path / "ok.js"
+    hostile.write_bytes(QUADRATIC_INPUT)
+    normal.write_text('import a from "./a";\n')
+    started = time.monotonic()
+    with IsolatedParser(per_file_seconds=1) as parser:
+        assert parser.parse(hostile, ".js").error == "parse_timeout"
+        assert parser.parse(normal, ".js").imports[0].specifier == "./a"
+    assert time.monotonic() - started < 30
+
+
+def test_isolated_parser_cancels_mid_file(tmp_path):
+    hostile = tmp_path / "quotes.js"
+    hostile.write_bytes(QUADRATIC_INPUT)
+    cancel_at = time.monotonic() + 0.5
+    with IsolatedParser(per_file_seconds=60, should_stop=lambda: time.monotonic() > cancel_at) as parser:
+        assert parser.parse(hostile, ".js").error == "parse_cancelled"
+    assert time.monotonic() - cancel_at < 5
+
+
+def test_isolated_parser_survives_worker_crash(tmp_path):
+    source = tmp_path / "a.js"
+    source.write_text("1;")
+    crashing = (sys.executable, "-c", "import os; os.abort()")
+    with IsolatedParser(per_file_seconds=30, worker_command=crashing) as parser:
+        assert parser.parse(source, ".js").error == "parser_crashed"
+        assert parser.parse(source, ".js").error == "parser_crashed"  # restarted, not stuck
+
+
+def test_isolated_parser_handles_unencodable_strings(tmp_path):
+    source = tmp_path / "a.py"
+    source.write_text('@app.get("/x\\ud800")\ndef f(): ...\n')
+    with IsolatedParser(per_file_seconds=30) as parser:
+        routes = parser.parse(source, ".py").routes
+    assert routes and routes[0][0].encode("utf-8")
+
+
+def test_hostile_file_does_not_stop_the_map(make_client, upload):
+    client = make_client(max_parse_file_seconds=0.5)
+    entries = [*MONOREPO, ("shop/apps/api/src/utils/evil.js", QUADRATIC_INPUT)]
+    started = time.monotonic()
+    body = upload(build_zip(entries), test_client=client).json()
+    arch = client.get(f"/api/projects/{body['project']['id']}/architecture").json()
+    assert time.monotonic() - started < 30
+    assert arch["status"] == "available"
+    assert any("per-file time limit" in note for note in arch["notes"])
+    assert "@shop/api · routes" in by_name(arch)
 
 
 def test_route_and_client_detection():

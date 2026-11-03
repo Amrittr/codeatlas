@@ -1,4 +1,4 @@
-# API Reference (v0.4, schema version 4)
+# API Reference (v0.4.1, schema version 4)
 
 Base path: `/api`. JSON uses camelCase. There is **no authentication** in this release (see
 SECURITY.md). Interactive docs are at `/api/docs` when `CODEATLAS_ENVIRONMENT` is not `production`.
@@ -37,7 +37,7 @@ Problems found **during** a job (for example `unsafe_archive`, `too_many_files`,
 
 ## `GET /api/health`
 
-`200 {"status": "ok", "version": "0.4.0"}`
+`200 {"status": "ok", "version": "0.4.1"}`
 
 ## `GET /api/config`
 

@@ -22,7 +22,7 @@ def node_by_path(client, pid, path):
 
 
 def test_health(client):
-    assert client.get("/api/health").json() == {"status": "ok", "version": "0.4.0"}
+    assert client.get("/api/health").json() == {"status": "ok", "version": "0.4.1"}
 
 
 def test_public_config_exposes_limits(client):

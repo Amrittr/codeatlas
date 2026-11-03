@@ -1,0 +1,26 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: If a specific archive triggers it, describe its structure. Please do not attach private code.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: CodeAtlas version, OS, Python version, browser
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: "**Security problem?** Do not file it here. Use [private vulnerability reporting](https://github.com/Amrittr/codeatlas/security/advisories/new)."

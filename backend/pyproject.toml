@@ -1,8 +1,9 @@
 [project]
 name = "codeatlas-backend"
-version = "0.1.0"
+version = "0.4.1"
 description = "CodeAtlas analysis API: secure ZIP import, repository scanning and structure statistics."
 requires-python = ">=3.11"
+license = "AGPL-3.0-only"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -20,7 +20,8 @@ from app.analyzers.architecture.knowledge import (
 from app.analyzers.architecture.http_links import RouteRef, link_http
 from app.analyzers.architecture.manifests import Package, read_packages, read_ts_aliases
 from app.analyzers.architecture.resolver import Resolution, Resolver
-from app.analyzers.parsers import ADAPTERS, MAX_PARSE_BYTES, ImportRecord, ParseResult, parse_imports
+from app.analyzers.parsers import ADAPTERS, MAX_PARSE_BYTES, ImportRecord, ParseResult
+from app.analyzers.parsers.worker import IsolatedParser
 from app.schemas.architecture import (
     ArchitectureResponse,
     ArchitectureSummary,
@@ -115,6 +116,7 @@ def build_architecture(
     context: AnalysisContext,
     *,
     parse_budget_seconds: float = 150.0,
+    parse_file_seconds: float = 5.0,
 ) -> ArchitectureResult:
     generated = [n.path for n in nodes.values() if isinstance(n, DirectoryRecord) and n.generated]
     analyzed = [n for n in nodes.values() if isinstance(n, FileRecord) and not n.excluded]
@@ -141,30 +143,27 @@ def build_architecture(
     results: dict[str, ParseResult] = {}
     parse_deadline = time.monotonic() + parse_budget_seconds
     budget_skipped = 0
-    for file in parseable:
-        context.checkpoint()
-        if time.monotonic() > parse_deadline:
-            budget_skipped += 1  # leave it "not_parsed"; the map is built from what was parsed
+    with IsolatedParser(per_file_seconds=parse_file_seconds, should_stop=context.should_stop) as parser:
+        for file in parseable:
+            context.checkpoint()
+            if time.monotonic() > parse_deadline:
+                budget_skipped += 1  # leave it "not_parsed"; the map is built from what was parsed
+                context.advance()
+                continue
+            if (file.size_bytes or 0) > MAX_PARSE_BYTES:
+                result = ParseResult(error="too_large")
+            else:
+                result = parser.parse(extract_dir.joinpath(*file.path.split("/")), file.extension)
+            results[file.path] = result
+            fact = facts[file.path]
+            fact.routes = sorted(set(result.routes))
+            route_lines = {line for _, line in fact.routes}
+            fact.url_refs = sorted({ref for ref in result.url_refs if ref[1] not in route_lines})
+            fact.browser_api = result.browser_api
+            fact.status = (
+                "too_large" if result.error == "too_large" else "error" if result.error else "partial" if result.partial else "parsed"
+            )
             context.advance()
-            continue
-        if (file.size_bytes or 0) > MAX_PARSE_BYTES:
-            results[file.path] = ParseResult(error="too_large")
-        else:
-            try:
-                data = extract_dir.joinpath(*file.path.split("/")).read_bytes()
-            except OSError:
-                data = None
-            results[file.path] = parse_imports(data, file.extension, context.should_stop) if data is not None else ParseResult(error="unreadable")
-        result = results[file.path]
-        fact = facts[file.path]
-        fact.routes = sorted(set(result.routes))
-        route_lines = {line for _, line in fact.routes}
-        fact.url_refs = sorted({ref for ref in result.url_refs if ref[1] not in route_lines})
-        fact.browser_api = result.browser_api
-        fact.status = (
-            "too_large" if result.error == "too_large" else "error" if result.error else "partial" if result.partial else "parsed"
-        )
-        context.advance()
     context.checkpoint()
 
     # 3. Resolve.
@@ -235,6 +234,7 @@ def build_architecture(
         dynamic_unknown=dynamic_unknown,
         languages=[LanguageCount(language=lang, file_count=count) for lang, count in languages.most_common()],
     )
+    stuck_files = sum(1 for r in results.values() if r.error in ("parse_timeout", "parser_crashed"))
     response = ArchitectureResponse(
         project_id="",
         status="available" if code else "no_code",
@@ -244,7 +244,7 @@ def build_architecture(
         externals=externals,
         connections=connections,
         unresolved_samples=unresolved_samples,
-        notes=_notes(summary, languages, components, budget_skipped),
+        notes=_notes(summary, languages, components, budget_skipped, stuck_files),
     )
     component_files = {
         group.id: sorted(
@@ -663,7 +663,9 @@ def _frameworks(facts: dict[str, _FileFacts], packages: list[Package]) -> list[F
     return sorted(result, key=lambda f: (-f.importing_files, f.name))
 
 
-def _notes(summary: ArchitectureSummary, languages: Counter, components: list[Component], budget_skipped: int = 0) -> list[str]:
+def _notes(
+    summary: ArchitectureSummary, languages: Counter, components: list[Component], budget_skipped: int = 0, stuck_files: int = 0
+) -> list[str]:
     notes = [
         "Components are folders grouped by package boundaries; roles are inferred from imports of known "
         "frameworks, file types and naming conventions. Low-confidence roles rest on folder names only.",
@@ -682,6 +684,8 @@ def _notes(summary: ArchitectureSummary, languages: Counter, components: list[Co
     if budget_skipped:
         notes.insert(0, f"Partial map: parsing stopped at the time budget and {budget_skipped:,} source files were not "
                      "parsed. Their components appear, but some connections may be missing.")
+    if stuck_files:
+        notes.append(f"{stuck_files} file(s) could not be parsed within the per-file time limit and were skipped.")
     if summary.skipped_too_large:
         notes.append(f"{summary.skipped_too_large} file(s) larger than {MAX_PARSE_BYTES // 1024} KB were not parsed.")
     return notes

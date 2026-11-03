@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import shutil
+import sys
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -129,7 +130,7 @@ def analyze_archive(
     generated_folders = detect_generated_folders(nodes, scan.children, ROOT_ID)
     # Reads JS/TS/Python sources from the private extraction folder, which still exists here.
     architecture = (
-        build_architecture(extract_dir, nodes, ROOT_ID, context, parse_budget_seconds=settings.max_parse_seconds)
+        build_architecture(extract_dir, nodes, ROOT_ID, context, parse_budget_seconds=settings.max_parse_seconds, parse_file_seconds=settings.max_parse_file_seconds)
         if options.analyze_code
         else empty_architecture("disabled")
     )
@@ -255,9 +256,14 @@ def _looks_like_env_file(name: str) -> bool:
 
 
 def remove_workdir(workdir: Path) -> None:
-    def on_error(function, path, exc) -> None:  # noqa: ANN001 - shutil callback signature
-        logger.warning("Could not remove part of a temporary analysis directory (%s)", type(exc).__name__)
+    def on_error(function, path, error) -> None:  # noqa: ANN001 - shutil callback signature
+        # `error` is an exception (onexc, Python 3.12+) or an exc_info tuple (onerror, Python 3.11).
+        kind = error[0].__name__ if isinstance(error, tuple) else type(error).__name__
+        logger.warning("Could not remove part of a temporary analysis directory (%s)", kind)
 
-    shutil.rmtree(workdir, onexc=on_error)
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(workdir, onexc=on_error)
+    else:
+        shutil.rmtree(workdir, onerror=on_error)
     if os.path.exists(workdir):
         logger.error("Temporary analysis directory was not fully removed")

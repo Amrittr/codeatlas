@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.1 — 2026-11-03 — First public release
+
+### Fixed
+- **Denial of service:** a crafted 512 KB JS/TS file made tree-sitter run for minutes,
+  uninterruptibly. Parsing now runs in a worker process with a per-file time limit
+  (`MAX_PARSE_FILE_SECONDS`, 5 s). Slow files are killed and reported as unparsed.
+- **Crash on Python 3.11:** tree-sitter's progress callback segfaulted the interpreter. It is no
+  longer used, and a worker crash now loses only one file rather than the server.
+- **Python 3.11 incompatibility:** temp-directory cleanup used an argument that exists only on
+  3.12+, which broke every analysis on 3.11.
+- Locked sidebar items looked clickable but ignored clicks. They are now dimmed and explain why.
+
+### Added
+- AGPL-3.0 license, GitHub Actions CI (Linux, Python 3.11 and 3.14, browser tests), contribution
+  guide, issue and pull-request templates, README screenshots (`scripts/make_screenshots.py`).
+
 ## 0.4.0 — 2026-10-25 — Generated architecture map
 
 ### Added

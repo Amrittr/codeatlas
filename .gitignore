@@ -15,7 +15,8 @@ samples/
 test-results/
 e2e-screenshots/
 
-# OS / editor
+# OS / editor / local tooling
+.claude/
 .DS_Store
 .idea/
 .vscode/

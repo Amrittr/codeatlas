@@ -57,7 +57,7 @@ reuse `scan_directory`, statistics and the index unchanged.
 | `repositories/project_store.py` | In-memory TTL + LRU store |
 | `analyzers/` | Language detection, config-file recognition, classification |
 | `analyzers/generated_detector.py` | Evidence-based build-output folder detection |
-| `analyzers/parsers/` | Language adapters returning imports, routes, URL references and browser-API use: `python_parser` (ast), `javascript_parser` (tree-sitter JS/TS/TSX) |
+| `analyzers/parsers/` | Language adapters returning imports, routes, URL references and browser-API use: `python_parser` (ast), `javascript_parser` (tree-sitter JS/TS/TSX). `worker` runs them in a killable child process |
 | `analyzers/architecture/` | `manifests` (package.json, pyproject, requirements, tsconfig paths), `resolver` (imports → files or packages), `http_links` (URL-path matching), `knowledge` (framework and service catalogue), `builder` (grouping, roles, connections) |
 | `analyzers/exclusions.py` | `ExclusionPolicy`: default rules, custom patterns and `.gitignore` semantics (via `pathspec`) |
 | `api/routes/` | `health.py` (health, public config), `projects.py`, `jobs.py` |
@@ -181,8 +181,8 @@ never excluded by detection.
 
 1. **Manifests** become package boundaries, declared dependencies, entry points and tsconfig
    path aliases.
-2. **Parsing** happens per file, bounded by size (512 KB), the job's time limit and a parse
-   budget. Each parse yields import statements with lines; route declarations (`app.get('/x')`,
+2. **Parsing** happens per file in a child process (`parsers/worker.py`), bounded by size
+   (512 KB), a per-file time limit (the worker is killed and restarted), and a parse budget. Each parse yields import statements with lines; route declarations (`app.get('/x')`,
    `router.post`, `app.use('/api/x')`, FastAPI/Flask decorators, `APIRouter(prefix)`,
    `Blueprint(url_prefix)`, Django `path()`); URL paths used by clients; and use of browser globals.
 3. **Resolution** handles relative paths with extension and index probing (including
@@ -224,6 +224,7 @@ for keyboard and screen-reader use.
 | Slotted records internally, Pydantic at the boundary | Measured 2.7× less retained memory, with no change to the API contract. |
 | Memory budget in nodes, not projects | Retained memory is proportional to nodes. 10 small projects and 1 huge one cost very different amounts. |
 | tree-sitter and `ast`, not regular expressions | Comments and strings that look like imports are never reported, and syntax errors degrade per file. Measured ~480 real files/s per core. |
+| Parsing in a killable worker process | Measured: tree-sitter takes minutes on a crafted 512 KB file, and its only in-process interrupt segfaults on Python 3.11. A separate process makes both harmless. |
 | HTTP links inferred and labelled as such | The spec requires uncertainty to be explicit. Matching URL paths is useful evidence but not proof of runtime routing. |
 | Roles from imports > routes > file types > names | Folder names alone never produce more than *low* confidence. |
 | Cytoscape vendored and loaded lazily | Strict CSP (`'self'` only) and no load cost for users who never open the map. |

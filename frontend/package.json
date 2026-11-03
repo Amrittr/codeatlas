@@ -1,6 +1,6 @@
 {
   "name": "codeatlas-frontend",
-  "version": "0.1.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "description": "CodeAtlas dashboard: vanilla JavaScript ES modules + Tailwind CSS. No framework, no bundler.",
@@ -20,5 +20,6 @@
   },
   "dependencies": {
     "cytoscape": "3.34.4"
-  }
+  },
+  "license": "AGPL-3.0-only"
 }

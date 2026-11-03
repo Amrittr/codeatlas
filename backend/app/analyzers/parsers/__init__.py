@@ -33,7 +33,7 @@ class ParseResult:
     url_refs: list[tuple[str, int]] = field(default_factory=list)  # URL paths this file calls or references
     browser_api: bool = False  # uses document/window/localStorage …, i.e. runs in a browser
     dynamic_unknown: int = 0  # import()/require() calls whose target is not a string literal
-    error: str | None = None  # syntax_error | parse_cancelled | too_large | decode_error
+    error: str | None = None  # syntax_error | too_large | unreadable | parse_cancelled | parse_timeout | parser_crashed
     partial: bool = False  # parsed with recoverable syntax errors
 
 
