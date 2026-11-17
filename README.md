@@ -70,6 +70,8 @@ git clone https://github.com/Amrittr/codeatlas.git
 cd codeatlas
 make setup     # installs pinned dependencies and builds the frontend
 make dev       # serves the app on http://localhost:8000
+make test      # backend (pytest) and frontend tests
+make check     # syntax-checks every Python and JS source file
 ```
 
 Open <http://localhost:8000> and drop in a `.zip` of any project. GitHub's **Code → Download ZIP** works
